@@ -17,6 +17,7 @@ VPN="vpn"
 VPNC_CONF="${VPN}.conf"
 LDAP_VPN_Auth="/etc/openvpn/auth/ldap.conf"
 VPN_WorkDir="/opt/vpn-worker"
+username=test
 
 # 定义日志函数
 log_info() {
@@ -248,7 +249,6 @@ setup_openvpn() {
 }
 
 # 初始化证书环境
-# 初始化证书环境
 init_cert_env() {
     mkdir -p /etc/openvpn/easy-rsa
     cp -a /usr/share/easy-rsa/* /etc/openvpn/easy-rsa/
@@ -256,31 +256,13 @@ init_cert_env() {
 
     # 创建或修改 vars 文件
     cat > vars << EOF
-# 证书有效期（设置为10年 = 3650天）
-set_var EASYRSA_CERT_EXPIRE     3650
+    # 证书有效期（设置为10年 = 3650天）
 
-# PKI 相关设置
-set_var EASYRSA_PKI            "/etc/openvpn/easy-rsa/pki"
-set_var EASYRSA_DN             "org"
-set_var EASYRSA_KEY_SIZE       2048
-
-# 证书信息设置
-set_var EASYRSA_REQ_COUNTRY    "US"
-set_var EASYRSA_REQ_PROVINCE   "BAGA"
-set_var EASYRSA_REQ_CITY       "BAGA"
-set_var EASYRSA_REQ_ORG        "Origin"
-set_var EASYRSA_REQ_EMAIL      "admin@your-domain.com"
-set_var EASYRSA_REQ_OU         "OPS"
-
-# CA 设置
-set_var EASYRSA_CA_EXPIRE      3650
-set_var EASYRSA_CERT_EXPIRE    3650
-set_var EASYRSA_CRL_DAYS       3650
-
-# 算法设置
-set_var EASYRSA_DIGEST         "sha256"
-set_var EASYRSA_ALGO           "rsa"
-EOF
+    # CA 设置
+    export EASYRSA_CA_EXPIRE="3650"
+    export EASYRSA_CERT_EXPIRE="3650"
+    export EASYRSA_CRL_DAYS="3650"
+    EOF
 
     # 设置适当的权限
     chmod 700 /etc/openvpn/easy-rsa
@@ -292,8 +274,7 @@ create_server_cert() {
     cd /etc/openvpn/easy-rsa/
     
     # 加载变量
-    . ./vars
-    
+    source 
     ./easyrsa init-pki
     yes "" | ./easyrsa build-ca nopass
     yes "" | ./easyrsa gen-req server nopass
@@ -303,7 +284,7 @@ create_server_cert() {
 
 # 创建客户端证书
 create_client_cert() {
-    local username=$1
+    local username=username
     cd ${VPN_WorkDir}
 
     # 设置环境变量确保正确的 CN
