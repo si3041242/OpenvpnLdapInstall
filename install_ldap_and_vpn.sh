@@ -17,6 +17,7 @@ VPN="vpn"
 VPNC_CONF="${VPN}.conf"
 LDAP_VPN_Auth="/etc/openvpn/auth/ldap.conf"
 VPN_WorkDir="/opt/vpn-worker"
+# 测试用户
 username=test
 
 # 定义日志函数
@@ -254,15 +255,15 @@ init_cert_env() {
     cp -a /usr/share/easy-rsa/* /etc/openvpn/easy-rsa/
     cd /etc/openvpn/easy-rsa/
 
-    # 创建或修改 vars 文件
+# 创建或修改 vars 文件
     cat > vars << EOF
-    # 证书有效期（设置为10年 = 3650天）
+# 证书有效期（设置为10年 = 3650天）
 
-    # CA 设置
-    export EASYRSA_CA_EXPIRE="3650"
-    export EASYRSA_CERT_EXPIRE="3650"
-    export EASYRSA_CRL_DAYS="3650"
-    EOF
+# CA 设置
+export EASYRSA_CA_EXPIRE="3650"
+export EASYRSA_CERT_EXPIRE="3650"
+export EASYRSA_CRL_DAYS="3650"
+EOF
 
     # 设置适当的权限
     chmod 700 /etc/openvpn/easy-rsa
@@ -274,7 +275,7 @@ create_server_cert() {
     cd /etc/openvpn/easy-rsa/
     
     # 加载变量
-    source 
+    source vars
     ./easyrsa init-pki
     yes "" | ./easyrsa build-ca nopass
     yes "" | ./easyrsa gen-req server nopass
