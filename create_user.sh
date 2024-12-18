@@ -7,8 +7,9 @@ RES='\E[0m'
 
 # 配置文件路径
 SLAPD_CONF="/etc/ldap/slapd.conf"
-EASYRSA_PATH="/opt/EasyRSA-3.0.8"
+EASYRSA_PATH="/opt/vpn-worker"
 LDIF_PATH="/root/ldif/adduser"
+Client_Cert_Date=3650
 
 # 生成随机密码
 generate_password() {
@@ -77,6 +78,7 @@ create_client_cert() {
         return 1
     }
     export EASYRSA_REQ_CN="$username"
+    export EASYRSA_CERT_EXPIRE=${Client_Cert_Date}
 
     # 生成客户端密钥和请求
     EASYRSA_BATCH=1 ./easyrsa gen-req "$username" nopass
