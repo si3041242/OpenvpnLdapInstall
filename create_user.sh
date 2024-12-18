@@ -76,6 +76,7 @@ create_client_cert() {
         echo "PKI not initialized. Run './easyrsa init-pka' first."
         return 1
     }
+    export EASYRSA_REQ_CN="$username"
 
     # 生成客户端密钥和请求
     EASYRSA_BATCH=1 ./easyrsa gen-req "$username" nopass
