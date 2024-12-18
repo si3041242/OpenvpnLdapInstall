@@ -16,6 +16,7 @@ LOCAL_IP=$(hostname -I | awk '{print $1}')
 VPN="vpn"
 VPNC_CONF="${VPN}.conf"
 LDAP_VPN_Auth="/etc/openvpn/auth/ldap.conf"
+VPN_WorkDir="/opt/vpn-worker"
 
 # 定义日志函数
 log_info() {
@@ -247,21 +248,89 @@ setup_openvpn() {
 }
 
 # 初始化证书环境
+# 初始化证书环境
 init_cert_env() {
     mkdir -p /etc/openvpn/easy-rsa
     cp -a /usr/share/easy-rsa/* /etc/openvpn/easy-rsa/
     cd /etc/openvpn/easy-rsa/
+
+    # 创建或修改 vars 文件
+    cat > vars << EOF
+# 证书有效期（设置为10年 = 3650天）
+set_var EASYRSA_CERT_EXPIRE     3650
+
+# PKI 相关设置
+set_var EASYRSA_PKI            "/etc/openvpn/easy-rsa/pki"
+set_var EASYRSA_DN             "org"
+set_var EASYRSA_KEY_SIZE       2048
+
+# 证书信息设置
+set_var EASYRSA_REQ_COUNTRY    "US"
+set_var EASYRSA_REQ_PROVINCE   "BAGA"
+set_var EASYRSA_REQ_CITY       "BAGA"
+set_var EASYRSA_REQ_ORG        "Origin"
+set_var EASYRSA_REQ_EMAIL      "admin@your-domain.com"
+set_var EASYRSA_REQ_OU         "OPS"
+
+# CA 设置
+set_var EASYRSA_CA_EXPIRE      3650
+set_var EASYRSA_CERT_EXPIRE    3650
+set_var EASYRSA_CRL_DAYS       3650
+
+# 算法设置
+set_var EASYRSA_DIGEST         "sha256"
+set_var EASYRSA_ALGO           "rsa"
+EOF
+
+    # 设置适当的权限
+    chmod 700 /etc/openvpn/easy-rsa
+    chmod 600 vars
 }
 
 # 创建服务器证书
 create_server_cert() {
     cd /etc/openvpn/easy-rsa/
     
+    # 加载变量
+    . ./vars
+    
     ./easyrsa init-pki
     yes "" | ./easyrsa build-ca nopass
     yes "" | ./easyrsa gen-req server nopass
     yes "yes" | ./easyrsa sign server server
     ./easyrsa gen-dh
+}
+
+# 创建客户端证书
+create_client_cert() {
+    local username=$1
+    cd ${VPN_WorkDir}
+
+    # 设置环境变量确保正确的 CN
+    export EASYRSA_REQ_CN="$username"
+    export EASYRSA_BATCH=1
+
+    if [ ! -f "pki/issued/${username}.crt" ]; then
+        # 生成客户端密钥和请求
+        ./easyrsa gen-req "$username" nopass
+        
+        # 签名客户端证书
+        ./easyrsa sign-req client "$username"
+        
+        # 验证证书
+        if [ -f "pki/issued/${username}.crt" ]; then
+            log_info "证书生成成功: $username"
+            # 验证 CN 是否正确
+            openssl x509 -in "pki/issued/${username}.crt" -noout -subject | grep "CN = ${username}" || {
+                log_warn "证书 CN 验证失败"
+            }
+        else
+            log_error "证书生成失败: $username"
+            return 1
+        fi
+    else
+        log_warn "证书已存在: $username"
+    fi
 }
 
 # 设置 VPN 密钥和目录
@@ -283,9 +352,9 @@ backup_easyrsa() {
 
 # 设置客户端环境
 setup_client_env() {
-    mkdir -p /opt/EasyRSA-3.0.8
-    cp -a /etc/openvpn/easy-rsa/* /opt/EasyRSA-3.0.8/
-    cd /opt/EasyRSA-3.0.8
+    mkdir -p ${VPN_WorkDir}
+    cp -a /etc/openvpn/easy-rsa/* ${VPN_WorkDir}
+    cd ${VPN_WorkDir}
     mkdir -p server-cert
     cp /etc/openvpn/server/{ca.crt,ta.key} server-cert/
 
@@ -295,7 +364,7 @@ setup_client_env() {
 
 # 创建客户端证书
 create_client_cert() {
-    cd /opt/EasyRSA-3.0.8
+    cd ${VPN_WorkDir}
     
     if [ ! -f "pki/issued/test.crt" ]; then
         yes "" | ./easyrsa gen-req test nopass
@@ -490,7 +559,7 @@ uninstall_all() {
    # 删除配置文件和目录
    local dirs_to_remove=(
        "/etc/openvpn"
-       "/opt/EasyRSA-3.0.8"
+       "${VPN_WorkDir}"
        "/var/log/openvpn"
        "/etc/ldap"
        "/var/lib/ldap"
