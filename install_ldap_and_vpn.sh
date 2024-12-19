@@ -371,10 +371,10 @@ nobind
 persist-key
 persist-tun
 remote-cert-tls server
-cipher AES-256-CBC
+cipher AES-256-GCM
 auth SHA256
 auth-user-pass
-auth-nocache
+#auth-nocache
 key-direction 1
 verb 3
 EOF
@@ -421,10 +421,10 @@ cert server/server.crt
 key server/server.key
 dh server/dh.pem
 tls-auth server/ta.key 0
-cipher AES-256-CBC
+cipher AES-256-GCM
 auth SHA256
 server 192.168.211.0 255.255.255.0
-push "dhcp-option DNS 10.10.10.10"
+push "dhcp-option DNS 192.168.211.1"
 push "route 10.0.0.0  255.0.0.0"
 keepalive 10 120
 ifconfig-pool-persist /etc/openvpn/conf/ipp_ops.txt
